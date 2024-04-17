@@ -32,19 +32,31 @@ Happy testing/coding/cheating,
 Stimmy
 */
 
-
+#pragma once
 #define _CRT_SECURE_NO_WARNINGS
+#define WIN32_LEAN_AND_MEAN
+#pragma comment(lib, "d3d9.lib")
+#pragma comment (lib, "d3dx9.lib")
+
 
 
 #include <windows.h>
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <iostream>
 #include <stdio.h>
 #include "stdint.h"
-
+#include "d3d9.h"
+#include "d3dx9.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx9.h"
 
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(lib, "d3dx9.lib")
+
+HWND window = NULL;
+bool bMenuOpen = true;
+bool testBool = false;
+char TagBuffer[256];
 
 volatile DWORD dwEndscene_hook;
 volatile DWORD dwEndscene_ret;
@@ -54,23 +66,97 @@ HINSTANCE hDllModule;
 DWORD *vTable;
 volatile DWORD dmghook_ret;
 
-LPD3DXFONT pFont;
+
 
 static volatile LPDIRECT3DDEVICE9 pDevice;
 
-VOID WriteText(LPDIRECT3DDEVICE9 pDevice, INT x, INT y, DWORD color, CHAR *text)
+BOOL CALLBACK EnumWindowsCallback(HWND handle, LPARAM lParam)
 {
-  RECT rect;
-  SetRect(&rect, x, y, x, y);
-  pFont->DrawText(NULL, text, -1, &rect, DT_NOCLIP | DT_LEFT, color);
+    DWORD wndProcID;
+    GetWindowThreadProcessId(handle, &wndProcID);
+
+    if (GetCurrentProcessId() != wndProcID)
+    {
+        return TRUE;
+    }
+
+    window = handle;
+    return FALSE;
+}
+
+HWND GetProcessWindow()
+{
+    EnumWindows(EnumWindowsCallback, NULL);
+    return window;
 }
 
 VOID WINAPI BeforeEndScene(LPDIRECT3DDEVICE9 pDevice)
 {
-  //The custom function which is called before calling EndScene() 
-  D3DXCreateFont(pDevice, 30, 0, FW_BOLD, 1, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial", &pFont);
-  WriteText(pDevice, 0, 0, D3DCOLOR_ARGB(255, 255, 0, 0), "Hello World!");  //Display Hello World
-  pFont->Release();
+	static bool init = false;
+
+	if (!init)
+	{
+		ImGui::CreateContext();
+		ImGui::StyleColorsDark();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
+		ImGui_ImplWin32_Init(window);
+		ImGui_ImplDX9_Init(pDevice);
+
+		init = true;
+	}
+
+	if (GetAsyncKeyState(VK_INSERT) & 1)
+		bMenuOpen = !bMenuOpen;
+
+	if (bMenuOpen)
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		io.WantCaptureMouse = true;
+		io.WantCaptureKeyboard = true;
+
+		if (GetAsyncKeyState(VK_LBUTTON))
+		{
+			io.MouseDown[0] = true;
+			io.MouseClicked[0] = true;
+		}
+		else
+		{
+			io.MouseReleased[0] = true;
+			io.MouseDown[0] = false;
+			io.MouseClicked[0] = false;
+		}
+
+
+		ImGui_ImplDX9_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::SetNextWindowSize(ImVec2(300, 465));
+		ImGui::Begin("TestHook", &bMenuOpen);
+		ImGui::Text("");
+		ImGui::Text("TextTitle1");
+		ImGui::Checkbox("TestBox", &testBool);
+		ImGui::Text("");
+		ImGui::Text("TextTitle1");
+		if (ImGui::Button("TestButton", ImVec2(140, 28)))
+		{
+
+
+		}
+
+		ImGui::Text("");
+		ImGui::InputText("", TagBuffer, IM_ARRAYSIZE(TagBuffer));
+		if (ImGui::Button("Reset"))
+		{
+			memset(TagBuffer, 0, sizeof(TagBuffer));
+		}
+		ImGui::Text("Credits: SilverXK");
+		ImGui::End();
+		ImGui::EndFrame();
+		ImGui::Render();
+		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+	}
 }
 
 DWORD HookVMT(void *address, void *newfunction)
@@ -130,6 +216,7 @@ DWORD FindPattern(DWORD dwAddress, DWORD dwLen, BYTE *bMask, char * szMask)
 void MyHook(void)
 {
   DWORD hD3D = NULL;
+  GetProcessWindow;
   //Find VMT in memory
   while (!hD3D) hD3D = (DWORD)GetModuleHandle("d3d9.dll");
   DWORD PPPDevice = FindPattern(hD3D, 0x128000, (PBYTE)"\xC7\x06\x00\x00\x00\x00\x89\x86\x00\x00\x00\x00\x89\x86", "xx????xx????xx");
@@ -142,11 +229,11 @@ void MyHook(void)
   dwEndscene_ret = vTable[42];  //Save original function pointer for EndScene
   vTable[42] = (DWORD)&hook;    //Replace VMT function pointer with the one to the function "hook" in this code
   VirtualProtect(&vTable[42], 4, NewProtection, &NewProtection);
-
+  //test
   //Infinite loop
   while (1)
   {
-    Sleep(1000);
+    Sleep(1);
   }
 }
 
