@@ -1,7 +1,7 @@
 # EndSceneHookExample
 
 This is an example for hooking the Direct3D EndScene() function. It can be used for creating screen overlays like FPS counters in games.
-Currently, only 32 bit DirectX 9 games are supported. To be honest, I just tested it with Halo and a Direct3D test application.
+Currently, only 32 bit DirectX 9 games are supported. Uses IMGUI to create overlays.
 
 # Prerequisites
 * Visual Studio 2017 (I used the free Community Edition)
@@ -21,7 +21,7 @@ The DLL injection is pretty straightforward and explained in many places on the 
 About EndScene hooking, I didn't easily find good tutorials and examples. That's why I decided to make + release a complete example.
 I got most of the hooking code from https://www.unknowncheats.me/wiki/Direct3D:DirectX_9_EndScene_Midfunction_Hook_Example.
 The hooking works in several steps:
-One shoud know that 'EndScene()' is a member function of the 'IDirect3DDevice9' class. Therefore, it can't be hooked like a regular API call.
+One should know that 'EndScene()' is a member function of the 'IDirect3DDevice9' class. Therefore, it can't be hooked like a regular API call.
 The function is called via the Virtual Method Table (VMT) of 'IDirect3DDevice9'.
 When the DLL is injected into the game, its DLLMain is called. The DLLMain searches for the VMT in the memory via a magic number (this part of the code is not mine).
 After finding the VMT, it backs up the function pointer to EndScene() in a variable ('dwEndscene_ret') before overwriting it with a pointer to a custom function.
